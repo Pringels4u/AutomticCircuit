@@ -55,8 +55,10 @@ class SpheroRacer:
             (250, 250, 0)   
         ]
         print("🤖 Sphero BOLT Autonomous Racer initialized")
-        print(f"📏 Course: {self.COURSE_WIDTH}cm x {self.COURSE_HEIGHT}cm")    
-        def discover_nearest_toy(self): """Discover nearest Sphero toy"""
+        print(f"📏 Course: {self.COURSE_WIDTH}cm x {self.COURSE_HEIGHT}cm")
+
+    def discover_nearest_toy(self):
+        """Discover nearest Sphero toy"""
         try:
             toys = scanner.find_toys()
             if not toys:
