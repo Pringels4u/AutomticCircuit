@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 Autonomous Sphero BOLT Race Script
@@ -55,37 +54,46 @@ class SpheroRacer:
             (50, 250, 0),   
             (250, 250, 0)   
         ]
-        
         print("🤖 Sphero BOLT Autonomous Racer initialized")
-        print(f"📏 Course: {self.COURSE_WIDTH}cm x {self.COURSE_HEIGHT}cm")
-
-    def discover_and_connect(self) -> bool:
-        """Discover and connect to Sphero BOLT"""
+        print(f"📏 Course: {self.COURSE_WIDTH}cm x {self.COURSE_HEIGHT}cm")    
+        def discover_nearest_toy(self): """Discover nearest Sphero toy"""
         try:
-            if self.toy_name:
-                print(f"🔍 Looking for specific toy: {self.toy_name}")
-                self.toy = scanner.find_toy(toy_name=self.toy_name)
-            else:
-                print("🔍 Scanning for nearest Sphero...")
-                toys = scanner.find_toys()
-                if not toys:
-                    print("❌ No Sphero toys found!")
-                    return False
-                self.toy = toys[0]
-                print(f"✅ Found toy: {self.toy.name}")
-            
-            # Connect to the toy
-            print("🔗 Connecting to Sphero...")
-            self.api = SpheroEduAPI(self.toy)
-            
-            # Initialize the robot
-            self.api.reset_aim()
-            self.api.set_main_led(Color(0, 0, 255))  # Blue LED - connected
-            print("✅ Successfully connected to Sphero BOLT!")
-            return True
-            
+            toys = scanner.find_toys()
+            if not toys:
+                print("Geen Sphero's gevonden.")
+                return None
+            self.toy = toys[0]
+            print(f"Dichtstbijzijnde Sphero toy '{self.toy.name}' ontdekt.")            
+            return self.toy.name
         except Exception as e:
-            print(f"❌ Connection failed: {e}")
+            print(f"Error no toys nearby: {e}")
+            return None
+    
+    def discover_toy(self, toy_name):
+        """Discover specific Sphero toy by name"""
+        try:
+            self.toy = scanner.find_toy(toy_name=toy_name)
+            print(f"Sphero toy '{toy_name}' discovered.")
+            return True
+        except Exception as e:
+            print(f"Error discovering toy: {e}")
+            return False
+
+    def connect_toy(self):
+        """Connect to discovered Sphero toy"""
+        if self.toy is not None:
+            try:
+                self.api = SpheroEduAPI(self.toy)
+                # Initialize the robot
+                self.api.reset_aim()
+                self.api.set_main_led(Color(0, 0, 255))  # Blue LED - connected
+                print("✅ Successfully connected to Sphero BOLT!")
+                return True
+            except Exception as e:
+                print(f"Error connecting to toy: {e}")
+                return False
+        else:
+            print("No toy discovered. Please run discover_toy() first.")
             return False
 
     def calibrate_heading(self) -> bool:
@@ -134,7 +142,6 @@ class SpheroRacer:
             self.api.set_heading(heading)
             time.sleep(0.1)  # Small delay for heading adjustment
             self.api.set_speed(speed)
-            
             return True
             
         except Exception as e:
@@ -151,7 +158,13 @@ class SpheroRacer:
             # Calculate segment distance
             distance = self.calculate_distance((start_x, start_y), (end_x, end_y))
             
-            # Determine speed based on segment type
+            if distance < 1:  # Turn in place (same coordinates, different heading)
+                print(f"🔄 Turning in place to heading {end_heading}°")
+                self.api.set_heading(end_heading)
+                time.sleep(0.5)  # Time for turn to complete
+                return True
+            
+            # Regular movement segment
             if abs(end_heading - start_heading) > 45:  # Turn segment
                 speed = self.TURN_SPEED
                 duration = distance / (speed * 0.6)  # Slower for turns
@@ -262,9 +275,18 @@ def main():
     
     racer = SpheroRacer(toy_name=toy_name)
     
-    try:
-        # Step 1: Connect to Sphero
-        if not racer.discover_and_connect():
+    try:        # Step 1: Discover Sphero
+        if toy_name:
+            if not racer.discover_toy(toy_name):
+                print("❌ Failed to discover Sphero BOLT")
+                return False
+        else:
+            if not racer.discover_nearest_toy():
+                print("❌ Failed to discover Sphero BOLT")
+                return False
+        
+        # Step 1.5: Connect to Sphero
+        if not racer.connect_toy():
             print("❌ Failed to connect to Sphero BOLT")
             return False
         
