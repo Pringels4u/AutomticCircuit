@@ -324,13 +324,19 @@ def main(toy_name, joystick=None, playerid=None):
         racer.cleanup()
 
 if __name__ == "__main__":
-    if len(sys.argv) < 4:
-        print("Usage: python script.py <toy_name> <joystickNumber 0-1> <player 1-5>")
+    if len(sys.argv) < 2:
+        print("Usage: python driveAutomatic.py <toy_name>")
+        print("Example: python driveAutomatic.py SB-9DD8")
+        print("Available toy names:")
+        print("SB-9DD8 (Player 1)")
+        print("SB-2BBE (Player 2)")
+        print("SB-27A5 (Player 3)")
+        print("SB-81E0 (Player 4)")
+        print("SB-7740 (Player 5)")
         sys.exit(1)
     
     toy_name = sys.argv[1]
-    joystick = int(sys.argv[2])
-    playerid = int(sys.argv[3])
-    print(f"Try to connect to: {toy_name} with number {joystick} for player {playerid}")
+    print(f"Try to connect to: {toy_name}")
     
-    main(toy_name, joystick, playerid)
+    success = main(toy_name)
+    sys.exit(0 if success else 1)
