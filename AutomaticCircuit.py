@@ -265,27 +265,25 @@ class SpheroRacer:
         except Exception as e:
             print(f"⚠️ Cleanup warning: {e}")
 
-def main():
+def main(toy_name, joystick=None, playerid=None):
     """Main execution function"""
     print("=" * 50)
     print("🤖 SPHERO BOLT AUTONOMOUS RACER")
     print("=" * 50)
     
-    # Optional: specify toy name if you know it
-    # Common Sphero names: "SB-9DD8", "SB-2BBE", etc.
-    toy_name = None  # Set to specific name if needed
+    if toy_name is None:
+        print("❌ No toy name provided")
+        return False
+        
+    print(f"Try to connect to: {toy_name}")
     
     racer = SpheroRacer(toy_name=toy_name)
     
-    try:        # Step 1: Discover Sphero
-        if toy_name:
-            if not racer.discover_toy(toy_name):
-                print("❌ Failed to discover Sphero BOLT")
-                return False
-        else:
-            if not racer.discover_nearest_toy():
-                print("❌ Failed to discover Sphero BOLT")
-                return False
+    try:        
+        # Step 1: Discover Sphero
+        if not racer.discover_toy(toy_name):
+            print("❌ Failed to discover Sphero BOLT")
+            return False
         
         # Step 1.5: Connect to Sphero
         if not racer.connect_toy():
@@ -326,5 +324,13 @@ def main():
         racer.cleanup()
 
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+    if len(sys.argv) < 4:
+        print("Usage: python script.py <toy_name> <joystickNumber 0-1> <player 1-5>")
+        sys.exit(1)
+    
+    toy_name = sys.argv[1]
+    joystick = int(sys.argv[2])
+    playerid = int(sys.argv[3])
+    print(f"Try to connect to: {toy_name} with number {joystick} for player {playerid}")
+    
+    main(toy_name, joystick, playerid)
