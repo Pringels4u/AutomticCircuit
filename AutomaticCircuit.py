@@ -85,20 +85,15 @@ class SpheroRacer:
         """Connect to discovered Sphero toy"""
         if self.toy is not None:
             try:
-                self.api = SpheroEduAPI(self.toy)
-                # Initialize the robot
-                self.api.reset_aim()
-                self.api.set_main_led(Color(0, 0, 255))  # Blue LED - connected
-                print("✅ Successfully connected to Sphero BOLT!")
-                return True
+                return SpheroEduAPI(self.toy)
             except Exception as e:
                 print(f"Error connecting to toy: {e}")
-                return False
+                return None
         else:
             print("No toy discovered. Please run discover_toy() first.")
-            return False
+            return None
 
-    def calibrate_heading(self) -> bool:
+    def calibrate_heading(self, api) -> bool:
         """Manual calibration - set heading so 0° points to first segment"""
         try:
             print("\n🧭 CALIBRATION MODE")
@@ -107,18 +102,18 @@ class SpheroRacer:
             print("Press ENTER when positioned correctly...")
             
             # Set calibration LED (red)
-            self.api.set_main_led(Color(255, 0, 0))
-            self.api.set_speed(0)
+            api.set_main_led(Color(255, 0, 0))
+            api.set_speed(0)
             
             # Wait for user confirmation
             input()
             
             # Reset heading to 0°
-            self.api.reset_aim()
-            self.api.set_heading(0)
+            api.reset_aim()
+            api.set_heading(0)
             
             # Confirmation LED (green)
-            self.api.set_main_led(Color(0, 255, 0))
+            api.set_main_led(Color(0, 255, 0))
             print("✅ Calibration complete! Robot heading set to 0°")
             
             time.sleep(1)
@@ -135,22 +130,22 @@ class SpheroRacer:
         dy = end_pos[1] - start_pos[1]
         return math.sqrt(dx*dx + dy*dy)
 
-    def move_to_waypoint(self, x: float, y: float, heading: float, speed: int) -> bool:
+    def move_to_waypoint(self, api, x: float, y: float, heading: float, speed: int) -> bool:
         """Move to a specific waypoint"""
         try:
             print(f"🎯 Moving to ({x:.0f}, {y:.0f}) at heading {heading}° with speed {speed}")
             
             # Set heading and speed
-            self.api.set_heading(heading)
+            api.set_heading(heading)
             time.sleep(0.1)  # Small delay for heading adjustment
-            self.api.set_speed(speed)
+            api.set_speed(speed)
             return True
             
         except Exception as e:
             print(f"❌ Movement error: {e}")
             return False
 
-    def execute_segment(self, start_waypoint: Tuple[float, float, float], 
+    def execute_segment(self, api, start_waypoint: Tuple[float, float, float], 
                        end_waypoint: Tuple[float, float, float]) -> bool:
         """Execute movement between two waypoints"""
         try:
@@ -162,7 +157,7 @@ class SpheroRacer:
             
             if distance < 1:  # Turn in place (same coordinates, different heading)
                 print(f"🔄 Turning in place to heading {end_heading}°")
-                self.api.set_heading(end_heading)
+                api.set_heading(end_heading)
                 time.sleep(0.5)  # Time for turn to complete
                 return True
             
@@ -177,7 +172,7 @@ class SpheroRacer:
             print(f"📏 Segment distance: {distance:.1f}cm, Duration: {duration:.1f}s")
             
             # Execute movement
-            self.move_to_waypoint(end_x, end_y, end_heading, speed)
+            self.move_to_waypoint(api, end_x, end_y, end_heading, speed)
             
             # Wait for segment completion
             time.sleep(duration)
@@ -189,7 +184,7 @@ class SpheroRacer:
             print(f"❌ Segment execution failed: {e}")
             return False
 
-    def run_race(self) -> bool:
+    def run_race(self, api) -> bool:
         """Execute the complete race course"""
         try:
             if not self.calibrated:
@@ -200,7 +195,7 @@ class SpheroRacer:
             print("Course: Clockwise navigation")
             
             # Set racing LED (purple)
-            self.api.set_main_led(Color(255, 0, 255))
+            api.set_main_led(Color(255, 0, 255))
             
             # Start timer
             self.start_time = time.time()
@@ -213,7 +208,7 @@ class SpheroRacer:
                 
                 print(f"\n📍 Segment {i+1}/{len(self.waypoints)-1}")
                 
-                if not self.execute_segment(start_point, end_point):
+                if not self.execute_segment(api, start_point, end_point):
                     print(f"❌ Failed to execute segment {i+1}")
                     return False
                 
@@ -224,14 +219,14 @@ class SpheroRacer:
                 time.sleep(0.2)
             
             # Stop at finish line
-            self.api.set_speed(0)
+            api.set_speed(0)
             
             # Calculate race results
             race_time = time.time() - self.start_time
             avg_speed = self.total_distance / race_time if race_time > 0 else 0
             
             # Victory LED (gold)
-            self.api.set_main_led(Color(255, 215, 0))
+            api.set_main_led(Color(255, 215, 0))
             
             print(f"\n🏆 RACE COMPLETE!")
             print(f"⏱️ Total time: {race_time:.2f} seconds")
@@ -242,15 +237,15 @@ class SpheroRacer:
             
         except Exception as e:
             print(f"❌ Race failed: {e}")
-            self.emergency_stop()
+            self.emergency_stop(api)
             return False
 
-    def emergency_stop(self):
+    def emergency_stop(self, api):
         """Emergency stop function"""
         try:
-            if self.api:
-                self.api.set_speed(0)
-                self.api.set_main_led(Color(255, 0, 0))  # Red LED for error
+            if api:
+                api.set_speed(0)
+                api.set_main_led(Color(255, 0, 0))  # Red LED for error
                 print("🛑 EMERGENCY STOP ACTIVATED")
         except Exception as e:
             print(f"❌ Emergency stop failed: {e}")
@@ -258,10 +253,8 @@ class SpheroRacer:
     def cleanup(self):
         """Clean up resources"""
         try:
-            if self.api:
-                self.api.set_speed(0)
-                self.api.set_main_led(Color(0, 0, 0))  # Turn off LED
-                print("🧹 Cleanup complete")
+            # No cleanup needed with context manager
+            print("🧹 Cleanup complete")
         except Exception as e:
             print(f"⚠️ Cleanup warning: {e}")
 
@@ -285,30 +278,36 @@ def main(toy_name, joystick=None, playerid=None):
             print("❌ Failed to discover Sphero BOLT")
             return False
         
-        # Step 1.5: Connect to Sphero
-        if not racer.connect_toy():
-            print("❌ Failed to connect to Sphero BOLT")
-            return False
-        
-        # Step 2: Calibrate heading
-        if not racer.calibrate_heading():
-            print("❌ Failed to calibrate robot")
-            return False
-        
-        # Step 3: Final preparation
-        print("\n🏁 Ready to race!")
-        print("Press ENTER to start the autonomous race...")
-        input()
-        
-        # Step 4: Execute race
-        success = racer.run_race()
-        
-        if success:
-            print("\n✅ Autonomous race completed successfully!")
-        else:
-            print("\n❌ Race failed to complete")
+        # Step 2: Connect and run with context manager
+        with racer.connect_toy() as api:
+            if api is None:
+                print("❌ Failed to connect to Sphero BOLT")
+                return False
             
-        return success
+            # Initialize the robot
+            api.reset_aim()
+            api.set_main_led(Color(0, 0, 255))  # Blue LED - connected
+            print("✅ Successfully connected to Sphero BOLT!")
+            
+            # Step 3: Calibrate heading
+            if not racer.calibrate_heading(api):
+                print("❌ Failed to calibrate robot")
+                return False
+            
+            # Step 4: Final preparation
+            print("\n🏁 Ready to race!")
+            print("Press ENTER to start the autonomous race...")
+            input()
+            
+            # Step 5: Execute race
+            success = racer.run_race(api)
+            
+            if success:
+                print("\n✅ Autonomous race completed successfully!")
+            else:
+                print("\n❌ Race failed to complete")
+                
+            return success
         
     except KeyboardInterrupt:
         print("\n🛑 Race interrupted by user")
@@ -327,12 +326,6 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python driveAutomatic.py <toy_name>")
         print("Example: python driveAutomatic.py SB-9DD8")
-        print("Available toy names:")
-        print("SB-9DD8 (Player 1)")
-        print("SB-2BBE (Player 2)")
-        print("SB-27A5 (Player 3)")
-        print("SB-81E0 (Player 4)")
-        print("SB-7740 (Player 5)")
         sys.exit(1)
     
     toy_name = sys.argv[1]
